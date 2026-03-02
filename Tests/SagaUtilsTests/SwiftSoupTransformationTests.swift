@@ -72,20 +72,18 @@ final class SwiftSoupTransformationTests: XCTestCase {
 
     let expected = """
     <h2><a name="before"></a>Before</h2>
-    <nav class="toc">
-     <ul>
-      <li><a href="#hardware">Hardware</a>
-       <ul>
-        <li><a href="#computers">Computers</a></li>
-        <li><a href="#gadgets">Gadgets</a></li>
-       </ul></li>
-      <li><a href="#software">Software</a>
-       <ul>
-        <li><a href="#editors">Editors</a></li>
-        <li><a href="#browsers">Browsers</a></li>
-       </ul></li>
-     </ul>
-    </nav>
+    <ul class="toc">
+     <li><a href="#hardware">Hardware</a>
+      <ul>
+       <li><a href="#computers">Computers</a></li>
+       <li><a href="#gadgets">Gadgets</a></li>
+      </ul></li>
+     <li><a href="#software">Software</a>
+      <ul>
+       <li><a href="#editors">Editors</a></li>
+       <li><a href="#browsers">Browsers</a></li>
+      </ul></li>
+    </ul>
     <h2><a name="hardware"></a>Hardware</h2>
     <h3><a name="computers"></a>Computers</h3>
     <h3><a name="gadgets"></a>Gadgets</h3>
@@ -105,17 +103,15 @@ final class SwiftSoupTransformationTests: XCTestCase {
 
     let expected = """
     <h1><a name="before"></a>Before</h1>
-    <nav class="toc">
-     <ul>
-      <li><a href="#first">First</a>
-       <ul>
-        <li><a href="#second">Second</a>
-         <ul>
-          <li><a href="#third">Third</a></li>
-         </ul></li>
-       </ul></li>
-     </ul>
-    </nav>
+    <ul class="toc">
+     <li><a href="#first">First</a>
+      <ul>
+       <li><a href="#second">Second</a>
+        <ul>
+         <li><a href="#third">Third</a></li>
+        </ul></li>
+      </ul></li>
+    </ul>
     <h1><a name="first"></a>First</h1>
     <h2><a name="second"></a>Second</h2>
     <h3><a name="third"></a>Third</h3>
@@ -131,13 +127,11 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
-    <nav class="toc">
-     <ul>
-      <li><a href="#one">One</a></li>
-      <li><a href="#two">Two</a></li>
-      <li><a href="#three">Three</a></li>
-     </ul>
-    </nav>
+    <ul class="toc">
+     <li><a href="#one">One</a></li>
+     <li><a href="#two">Two</a></li>
+     <li><a href="#three">Three</a></li>
+    </ul>
     <h2><a name="one"></a>One</h2>
     <h2><a name="two"></a>Two</h2>
     <h2><a name="three"></a>Three</h2>
@@ -151,7 +145,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let doc = try SwiftSoup.parseBodyFragment(input)
     try generateTOC(doc)
 
-    XCTAssertEqual(try doc.select("nav.toc").size(), 0)
+    XCTAssertEqual(try doc.select("ul.toc").size(), 0)
   }
 
   func testGenerateTOCCustomPlaceholder() throws {
@@ -161,11 +155,9 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
-    <nav class="toc">
-     <ul>
-      <li><a href="#section">Section</a></li>
-     </ul>
-    </nav>
+    <ul class="toc">
+     <li><a href="#section">Section</a></li>
+    </ul>
     <h2><a name="section"></a>Section</h2>
     """
 

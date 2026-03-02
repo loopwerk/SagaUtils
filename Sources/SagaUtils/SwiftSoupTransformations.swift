@@ -12,14 +12,14 @@ public func addHeadingAnchors(_ doc: Document) throws {
   }
 }
 
-/// Replace `%TOC%` placeholder with a generated `<nav class="toc">` from headings.
+/// Replace `%TOC%` placeholder with a generated `<ul class="toc">` from headings.
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
 public func generateTOC(_ doc: Document) throws {
   try _generateTOC(doc, placeholder: "%TOC%")
 }
 
-/// Replace a custom placeholder with a generated `<nav class="toc">` from headings.
+/// Replace a custom placeholder with a generated `<ul class="toc">` from headings.
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
 /// - Parameter placeholder: The placeholder string to look for.
@@ -69,14 +69,11 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
     }
   }
 
-  // Build the TOC nav element
+  // Build the TOC list
   guard !tocEntries.isEmpty else {
     try tocParagraph.remove()
     return
   }
-
-  let nav = try doc.createElement("nav")
-  try nav.addClass("toc")
 
   // Build nested list HTML
   let minLevel = tocEntries.map(\.level).min() ?? 1
@@ -107,8 +104,10 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
     tocHTML += "</li></ul>"
   }
 
-  try nav.html(tocHTML)
-  try tocParagraph.replaceWith(nav)
+  let fragment = try SwiftSoup.parseBodyFragment(tocHTML)
+  guard let toc = try fragment.select("ul").first() else { return }
+  try toc.addClass("toc")
+  try tocParagraph.replaceWith(toc)
 }
 
 /// Convert blockquotes with `[!TYPE]` syntax to `<aside class="type">` elements.
