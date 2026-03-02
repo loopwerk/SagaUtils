@@ -5,6 +5,7 @@ import SwiftSoup
 public func addHeadingAnchors(_ doc: Document) throws {
   let headings = try doc.select("h1, h2, h3")
   for heading in headings {
+    guard try heading.select("a[name]").isEmpty() else { continue }
     let text = try heading.text()
     let slug = text.slugified
     try heading.prepend("<a name=\"\(slug)\"></a>")
@@ -52,7 +53,9 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
     guard tagName != "p" else { continue }
 
     let slug = text.slugified
-    try element.prepend("<a name=\"\(slug)\"></a>")
+    if try element.select("a[name]").isEmpty() {
+      try element.prepend("<a name=\"\(slug)\"></a>")
+    }
 
     if foundToc {
       let level: Int
@@ -76,26 +79,32 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
   try nav.addClass("toc")
 
   // Build nested list HTML
+  let minLevel = tocEntries.map(\.level).min() ?? 1
   var tocHTML = ""
   var currentLevel = 0
 
   for entry in tocEntries {
-    if entry.level > currentLevel {
-      for _ in currentLevel ..< entry.level {
+    let level = entry.level - minLevel + 1
+
+    if level > currentLevel {
+      for _ in currentLevel ..< level {
         tocHTML += "<ul>"
       }
-    } else if entry.level < currentLevel {
-      for _ in entry.level ..< currentLevel {
-        tocHTML += "</ul>"
+    } else if level < currentLevel {
+      for _ in level ..< currentLevel {
+        tocHTML += "</li></ul>"
       }
+      tocHTML += "</li>"
+    } else if currentLevel > 0 {
+      tocHTML += "</li>"
     }
-    currentLevel = entry.level
-    tocHTML += "<li><a href=\"#\(entry.slug)\">\(entry.text)</a></li>"
+    currentLevel = level
+    tocHTML += "<li><a href=\"#\(entry.slug)\">\(entry.text)</a>"
   }
 
-  // Close remaining open lists
+  // Close remaining open items and lists
   for _ in 0 ..< currentLevel {
-    tocHTML += "</ul>"
+    tocHTML += "</li></ul>"
   }
 
   try nav.html(tocHTML)

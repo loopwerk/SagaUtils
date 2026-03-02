@@ -4,6 +4,10 @@ import SwiftSoup
 import XCTest
 
 final class SwiftSoupTransformationTests: XCTestCase {
+  private let normalize = { (s: String) in
+    s.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+  }
+
   // MARK: - addHeadingAnchors
 
   func testAddHeadingAnchors() throws {
@@ -11,9 +15,13 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try addHeadingAnchors(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertTrue(html.contains("<a name=\"hello-world\"></a>"))
-    XCTAssertTrue(html.contains("<a name=\"section-two\"></a>"))
-    XCTAssertTrue(html.contains("<a name=\"sub-section\"></a>"))
+    let expected = """
+    <h1><a name="hello-world"></a>Hello World</h1>
+    <h2><a name="section-two"></a>Section Two</h2>
+    <h3><a name="sub-section"></a>Sub Section</h3>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testAddHeadingAnchorsIgnoresH4AndBelow() throws {
@@ -21,7 +29,12 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try addHeadingAnchors(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertFalse(html.contains("<a name="))
+    let expected = """
+    <h4>Not Anchored</h4>
+    <h5>Also Not</h5>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testAddHeadingAnchorsDoesNotAffectInternalLinks() throws {
@@ -29,60 +42,115 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try addHeadingAnchors(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertTrue(html.contains("<a href=\"/about\">About</a>"))
-    XCTAssertTrue(html.contains("<a name=\"title\"></a>"))
+    let expected = """
+    <h2><a name="title"></a>Title</h2>
+    <a href="/about">About</a>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
+  }
+
+  func testAddHeadingAnchorsSkipsDuplicates() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2><a name=\"existing\"></a>Title</h2>")
+    try addHeadingAnchors(doc)
+    let html = try XCTUnwrap(try doc.body()?.html())
+
+    let expected = """
+    <h2><a name="existing"></a>Title</h2>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   // MARK: - generateTOC
 
-  func testGenerateTOC() throws {
-    let input = "<p>%TOC%</p><h1>First</h1><h2>Second</h2><h3>Third</h3>"
+  func testGenerateTOCNesting() throws {
+    let input = "<h2>Before</h2><p>%TOC%</p><h2>Hardware</h2><h3>Computers</h3><h3>Gadgets</h3><h2>Software</h2><h3>Editors</h3><h3>Browsers</h3>"
     let doc = try SwiftSoup.parseBodyFragment(input)
     try generateTOC(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    // TOC placeholder should be replaced
-    XCTAssertFalse(html.contains("%TOC%"))
+    let expected = """
+    <h2><a name="before"></a>Before</h2>
+    <nav class="toc">
+     <ul>
+      <li><a href="#hardware">Hardware</a>
+       <ul>
+        <li><a href="#computers">Computers</a></li>
+        <li><a href="#gadgets">Gadgets</a></li>
+       </ul></li>
+      <li><a href="#software">Software</a>
+       <ul>
+        <li><a href="#editors">Editors</a></li>
+        <li><a href="#browsers">Browsers</a></li>
+       </ul></li>
+     </ul>
+    </nav>
+    <h2><a name="hardware"></a>Hardware</h2>
+    <h3><a name="computers"></a>Computers</h3>
+    <h3><a name="gadgets"></a>Gadgets</h3>
+    <h2><a name="software"></a>Software</h2>
+    <h3><a name="editors"></a>Editors</h3>
+    <h3><a name="browsers"></a>Browsers</h3>
+    """
 
-    // Should have a nav.toc
-    let nav = try doc.select("nav.toc")
-    XCTAssertEqual(nav.size(), 1)
-
-    // Should have links to headings
-    let tocLinks = try nav.select("a[href]")
-    XCTAssertEqual(tocLinks.size(), 3)
-    XCTAssertEqual(try tocLinks.get(0).attr("href"), "#first")
-    XCTAssertEqual(try tocLinks.get(1).attr("href"), "#second")
-    XCTAssertEqual(try tocLinks.get(2).attr("href"), "#third")
-
-    // Headings should have anchors
-    XCTAssertTrue(html.contains("<a name=\"first\"></a>"))
-    XCTAssertTrue(html.contains("<a name=\"second\"></a>"))
-    XCTAssertTrue(html.contains("<a name=\"third\"></a>"))
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
-  func testGenerateTOCOnlyIncludesHeadingsAfterPlaceholder() throws {
-    let input = "<h2>Before</h2><p>%TOC%</p><h2>After</h2>"
+  func testGenerateTOCNestingH1H2H3() throws {
+    let input = "<h1>Before</h1><p>%TOC%</p><h1>First</h1><h2>Second</h2><h3>Third</h3>"
     let doc = try SwiftSoup.parseBodyFragment(input)
     try generateTOC(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    let tocLinks = try doc.select("nav.toc a[href]")
-    XCTAssertEqual(tocLinks.size(), 1)
-    XCTAssertEqual(try tocLinks.get(0).attr("href"), "#after")
+    let expected = """
+    <h1><a name="before"></a>Before</h1>
+    <nav class="toc">
+     <ul>
+      <li><a href="#first">First</a>
+       <ul>
+        <li><a href="#second">Second</a>
+         <ul>
+          <li><a href="#third">Third</a></li>
+         </ul></li>
+       </ul></li>
+     </ul>
+    </nav>
+    <h1><a name="first"></a>First</h1>
+    <h2><a name="second"></a>Second</h2>
+    <h3><a name="third"></a>Third</h3>
+    """
 
-    // Both headings still get anchors
-    XCTAssertTrue(html.contains("<a name=\"before\"></a>"))
-    XCTAssertTrue(html.contains("<a name=\"after\"></a>"))
+    XCTAssertEqual(normalize(html), normalize(expected))
+  }
+
+  func testGenerateTOCFlatH2Only() throws {
+    let input = "<p>%TOC%</p><h2>One</h2><h2>Two</h2><h2>Three</h2>"
+    let doc = try SwiftSoup.parseBodyFragment(input)
+    try generateTOC(doc)
+    let html = try XCTUnwrap(try doc.body()?.html())
+
+    let expected = """
+    <nav class="toc">
+     <ul>
+      <li><a href="#one">One</a></li>
+      <li><a href="#two">Two</a></li>
+      <li><a href="#three">Three</a></li>
+     </ul>
+    </nav>
+    <h2><a name="one"></a>One</h2>
+    <h2><a name="two"></a>Two</h2>
+    <h2><a name="three"></a>Three</h2>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testGenerateTOCWithoutPlaceholder() throws {
     let input = "<h1>Title</h1><p>Content</p>"
     let doc = try SwiftSoup.parseBodyFragment(input)
     try generateTOC(doc)
-    let html = try XCTUnwrap(try doc.body()?.html())
 
-    // No nav should be generated
     XCTAssertEqual(try doc.select("nav.toc").size(), 0)
   }
 
@@ -92,8 +160,27 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try generateTOC(placeholder: "@TOC")(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertFalse(html.contains("@TOC"))
-    XCTAssertEqual(try doc.select("nav.toc a[href]").size(), 1)
+    let expected = """
+    <nav class="toc">
+     <ul>
+      <li><a href="#section">Section</a></li>
+     </ul>
+    </nav>
+    <h2><a name="section"></a>Section</h2>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
+  }
+
+  func testGenerateTOCNoDuplicateAnchorsWithAddHeadingAnchors() throws {
+    let input = "<p>%TOC%</p><h2>One</h2><h2>Two</h2>"
+    let doc = try SwiftSoup.parseBodyFragment(input)
+    try addHeadingAnchors(doc)
+    try generateTOC(doc)
+
+    for heading in try doc.select("h2").array() {
+      XCTAssertEqual(try heading.select("a[name]").size(), 1)
+    }
   }
 
   // MARK: - convertAsides
@@ -104,10 +191,14 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try convertAsides(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertFalse(html.contains("<blockquote>"))
-    XCTAssertTrue(html.contains("<aside class=\"warning\">"))
-    XCTAssertTrue(html.contains("<p class=\"title\">WARNING</p>"))
-    XCTAssertTrue(html.contains("Be careful"))
+    let expected = """
+    <aside class="warning">
+     <p class="title">WARNING</p>
+     <p>Be careful</p>
+    </aside>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testConvertAsidesTwoWordType() throws {
@@ -116,10 +207,14 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try convertAsides(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertFalse(html.contains("<blockquote>"))
-    XCTAssertTrue(html.contains("<aside class=\"did-you-know\">"))
-    XCTAssertTrue(html.contains("<p class=\"title\">DID YOU KNOW</p>"))
-    XCTAssertTrue(html.contains("Something interesting"))
+    let expected = """
+    <aside class="did-you-know">
+     <p class="title">DID YOU KNOW</p>
+     <p>Something interesting</p>
+    </aside>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testConvertAsidesLeavesRegularBlockquotes() throws {
@@ -128,8 +223,13 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try convertAsides(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertTrue(html.contains("<blockquote>"))
-    XCTAssertFalse(html.contains("<aside"))
+    let expected = """
+    <blockquote>
+     <p>Just a regular quote</p>
+    </blockquote>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testConvertAsidesMultipleTypes() throws {
@@ -141,8 +241,18 @@ final class SwiftSoupTransformationTests: XCTestCase {
     try convertAsides(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
 
-    XCTAssertTrue(html.contains("<aside class=\"note\">"))
-    XCTAssertTrue(html.contains("<aside class=\"tip\">"))
+    let expected = """
+    <aside class="note">
+     <p class="title">NOTE</p>
+     <p>A note</p>
+    </aside>
+    <aside class="tip">
+     <p class="title">TIP</p>
+     <p>A tip</p>
+    </aside>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   // MARK: - processExternalLinks
@@ -151,36 +261,41 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let input = "<a href=\"https://example.com\">External</a><a href=\"/about\">Internal</a>"
     let doc = try SwiftSoup.parseBodyFragment(input)
     try processExternalLinks(doc)
+    let html = try XCTUnwrap(try doc.body()?.html())
 
-    let links = try doc.select("a")
-    let external = links.get(0)
-    let internal_ = links.get(1)
+    let expected = """
+    <a href="https://example.com" target="_blank" rel="nofollow">External</a>
+    <a href="/about">Internal</a>
+    """
 
-    XCTAssertEqual(try external.attr("target"), "_blank")
-    XCTAssertEqual(try external.attr("rel"), "nofollow")
-    XCTAssertEqual(try internal_.attr("target"), "")
-    XCTAssertEqual(try internal_.attr("rel"), "")
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testProcessExternalLinksHTTP() throws {
     let input = "<a href=\"http://example.com\">HTTP</a>"
     let doc = try SwiftSoup.parseBodyFragment(input)
     try processExternalLinks(doc)
+    let html = try XCTUnwrap(try doc.body()?.html())
 
-    let link = try XCTUnwrap(try doc.select("a").first())
-    XCTAssertEqual(try link.attr("target"), "_blank")
-    XCTAssertEqual(try link.attr("rel"), "nofollow")
+    let expected = """
+    <a href="http://example.com" target="_blank" rel="nofollow">HTTP</a>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   func testProcessExternalLinksLeavesAnchors() throws {
     let input = "<a href=\"#section\">Anchor</a><a href=\"mailto:test@test.com\">Email</a>"
     let doc = try SwiftSoup.parseBodyFragment(input)
     try processExternalLinks(doc)
+    let html = try XCTUnwrap(try doc.body()?.html())
 
-    let links = try doc.select("a")
-    for link in links {
-      XCTAssertEqual(try link.attr("target"), "")
-    }
+    let expected = """
+    <a href="#section">Anchor</a>
+    <a href="mailto:test@test.com">Email</a>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
   }
 
   // MARK: - swiftSoupProcessor combiner
@@ -195,7 +310,11 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let processor: (Item<EmptyMetadata>) async -> Void = swiftSoupProcessor(addHeadingAnchors, processExternalLinks)
     await processor(item)
 
-    XCTAssertTrue(item.body.contains("<a name=\"title\"></a>"))
-    XCTAssertTrue(item.body.contains("target=\"_blank\""))
+    let expected = """
+    <h2><a name="title"></a>Title</h2>
+    <a href="https://example.com" target="_blank" rel="nofollow">Link</a>
+    """
+
+    XCTAssertEqual(normalize(item.body), normalize(expected))
   }
 }
