@@ -9,7 +9,7 @@ Include `SagaUtils` in your Package.swift:
 let package = Package(
   dependencies: [
     .package(url: "https://github.com/loopwerk/Saga", from: "2.0.3"),
-    .package(url: "https://github.com/loopwerk/SagaUtils", from: "0.1.0"),
+    .package(url: "https://github.com/loopwerk/SagaUtils", from: "1.0.0"),
   ],
   targets: [
     .target(
