@@ -8,11 +8,13 @@ final class SwiftSoupTransformationTests: XCTestCase {
     s.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
   }
 
+  private let dummyItem = Item<EmptyMetadata>(title: "", body: "", metadata: EmptyMetadata())
+
   // MARK: - addHeadingAnchors
 
   func testAddHeadingAnchors() throws {
     let doc = try SwiftSoup.parseBodyFragment("<h1>Hello World</h1><h2>Section Two</h2><h3>Sub Section</h3>")
-    try addHeadingAnchors(doc)
+    try addHeadingAnchors(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -26,7 +28,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
 
   func testAddHeadingAnchorsIgnoresH4AndBelow() throws {
     let doc = try SwiftSoup.parseBodyFragment("<h4>Not Anchored</h4><h5>Also Not</h5>")
-    try addHeadingAnchors(doc)
+    try addHeadingAnchors(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -39,7 +41,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
 
   func testAddHeadingAnchorsDoesNotAffectInternalLinks() throws {
     let doc = try SwiftSoup.parseBodyFragment("<h2>Title</h2><a href=\"/about\">About</a>")
-    try addHeadingAnchors(doc)
+    try addHeadingAnchors(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -52,7 +54,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
 
   func testAddHeadingAnchorsSkipsDuplicates() throws {
     let doc = try SwiftSoup.parseBodyFragment("<h2><a name=\"existing\"></a>Title</h2>")
-    try addHeadingAnchors(doc)
+    try addHeadingAnchors(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -115,7 +117,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testGenerateTOCNesting() throws {
     let input = "<h2>Before</h2><p>%TOC%</p><h2>Hardware</h2><h3>Computers</h3><h3>Gadgets</h3><h2>Software</h2><h3>Editors</h3><h3>Browsers</h3>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try generateTOC(doc)
+    try generateTOC(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -146,7 +148,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testGenerateTOCNestingH1H2H3() throws {
     let input = "<h1>Before</h1><p>%TOC%</p><h1>First</h1><h2>Second</h2><h3>Third</h3>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try generateTOC(doc)
+    try generateTOC(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -171,7 +173,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testGenerateTOCFlatH2Only() throws {
     let input = "<p>%TOC%</p><h2>One</h2><h2>Two</h2><h2>Three</h2>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try generateTOC(doc)
+    try generateTOC(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -191,7 +193,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testGenerateTOCWithoutPlaceholder() throws {
     let input = "<h1>Title</h1><p>Content</p>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try generateTOC(doc)
+    try generateTOC(doc, item: dummyItem)
 
     XCTAssertEqual(try doc.select("ul.toc").size(), 0)
   }
@@ -199,7 +201,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testGenerateTOCCustomPlaceholder() throws {
     let input = "<p>@TOC</p><h2>Section</h2>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try generateTOC(placeholder: "@TOC")(doc)
+    try generateTOC(placeholder: "@TOC")(doc, dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -215,8 +217,8 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testGenerateTOCNoDuplicateAnchorsWithAddHeadingAnchors() throws {
     let input = "<p>%TOC%</p><h2>One</h2><h2>Two</h2>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try addHeadingAnchors(doc)
-    try generateTOC(doc)
+    try addHeadingAnchors(doc, item: dummyItem)
+    try generateTOC(doc, item: dummyItem)
 
     for heading in try doc.select("h2").array() {
       XCTAssertEqual(try heading.select("a[name]").size(), 1)
@@ -228,7 +230,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testConvertAsides() throws {
     let input = "<blockquote><p>[!WARNING] Be careful</p></blockquote>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try convertAsides(doc)
+    try convertAsides(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -244,7 +246,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testConvertAsidesTwoWordType() throws {
     let input = "<blockquote><p>[!DID YOU KNOW] Something interesting</p></blockquote>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try convertAsides(doc)
+    try convertAsides(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -260,7 +262,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testConvertAsidesLeavesRegularBlockquotes() throws {
     let input = "<blockquote><p>Just a regular quote</p></blockquote>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try convertAsides(doc)
+    try convertAsides(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -278,7 +280,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
     <blockquote><p>[!TIP] A tip</p></blockquote>
     """
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try convertAsides(doc)
+    try convertAsides(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -300,7 +302,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testProcessExternalLinks() throws {
     let input = "<a href=\"https://example.com\">External</a><a href=\"/about\">Internal</a>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try processExternalLinks(doc)
+    try processExternalLinks(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -314,7 +316,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testProcessExternalLinksHTTP() throws {
     let input = "<a href=\"http://example.com\">HTTP</a>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try processExternalLinks(doc)
+    try processExternalLinks(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
@@ -327,7 +329,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
   func testProcessExternalLinksLeavesAnchors() throws {
     let input = "<a href=\"#section\">Anchor</a><a href=\"mailto:test@test.com\">Email</a>"
     let doc = try SwiftSoup.parseBodyFragment(input)
-    try processExternalLinks(doc)
+    try processExternalLinks(doc, item: dummyItem)
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """

@@ -1,8 +1,9 @@
 import Foundation
+import Saga
 import SwiftSoup
 
 /// Add `<a name="slug"></a>` anchors to h1, h2, h3 headings.
-public func addHeadingAnchors(_ doc: Document) throws {
+public func addHeadingAnchors<M>(_ doc: Document, item: Item<M>) throws {
   let headings = try doc.select("h1, h2, h3")
   for heading in headings {
     guard try heading.select("a[name]").isEmpty() else { continue }
@@ -15,7 +16,7 @@ public func addHeadingAnchors(_ doc: Document) throws {
 /// Replace `%TOC%` placeholder with a generated `<ul class="toc">` from headings.
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
-public func generateTOC(_ doc: Document) throws {
+public func generateTOC<M>(_ doc: Document, item: Item<M>) throws {
   try _generateTOC(doc, placeholder: "%TOC%")
 }
 
@@ -23,8 +24,8 @@ public func generateTOC(_ doc: Document) throws {
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
 /// - Parameter placeholder: The placeholder string to look for.
-public func generateTOC(placeholder: String) -> (Document) throws -> Void {
-  return { doc in
+public func generateTOC<M>(placeholder: String) -> (Document, Item<M>) throws -> Void {
+  return { doc, _ in
     try _generateTOC(doc, placeholder: placeholder)
   }
 }
@@ -123,7 +124,7 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
 /// Convert blockquotes with `[!TYPE]` syntax to `<aside class="type">` elements.
 ///
 /// For example, a blockquote starting with `[!WARNING]` becomes `<aside class="warning">`.
-public func convertAsides(_ doc: Document) throws {
+public func convertAsides<M>(_ doc: Document, item: Item<M>) throws {
   let alertRegex = try NSRegularExpression(pattern: #"^\[!([A-Z][A-Z ]*[A-Z]|[A-Z])\]\s*(?:<br\s*/?>)?\s*"#)
   let blockquotes = try doc.select("blockquote")
   for blockquote in blockquotes {
@@ -153,7 +154,7 @@ public func convertAsides(_ doc: Document) throws {
 }
 
 /// Add `target="_blank"` and `rel="nofollow"` to external (http/https) links.
-public func processExternalLinks(_ doc: Document) throws {
+public func processExternalLinks<M>(_ doc: Document, item: Item<M>) throws {
   let links = try doc.select("a[href]")
   for link in links {
     let href = try link.attr("href")
