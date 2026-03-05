@@ -29,24 +29,24 @@ public func generateTOC(placeholder: String) -> (Document) throws -> Void {
   }
 }
 
-func _generateTOC(_ doc: Document, placeholder: String) throws {
-  // Find the <p> containing the placeholder
-  guard let tocParagraph = try doc.select("p").first(where: { try $0.text() == placeholder }) else {
-    // No placeholder found
-    return
-  }
-
-  // Collect all headings that appear after the TOC placeholder
+/// Build a `<ul class="toc">` from h1, h2, h3 headings in the document.
+///
+/// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
+/// Returns `nil` if no headings are found.
+///
+/// - Parameter placeholder: If provided, only headings after the this
+///   placeholder are included. If `nil`, all headings are included.
+public func buildTOCList(_ doc: Document, placeholder: String? = nil) throws -> String? {
   var tocEntries: [(text: String, slug: String, level: Int)] = []
-  var foundToc = false
+  var collecting = placeholder == nil
 
-  let elements = try doc.select("p, h1, h2, h3")
+  let elements = try doc.select(placeholder == nil ? "h1, h2, h3" : "p, h1, h2, h3")
   for element in elements {
     let tagName = element.tagName()
     let text = try element.text()
 
-    if tagName == "p", text == placeholder {
-      foundToc = true
+    if let placeholder, tagName == "p", text == placeholder {
+      collecting = true
       continue
     }
 
@@ -57,7 +57,7 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
       try element.prepend("<a name=\"\(slug)\"></a>")
     }
 
-    if foundToc {
+    if collecting {
       let level: Int
       switch tagName {
         case "h1": level = 1
@@ -69,11 +69,7 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
     }
   }
 
-  // Build the TOC list
-  guard !tocEntries.isEmpty else {
-    try tocParagraph.remove()
-    return
-  }
+  guard !tocEntries.isEmpty else { return nil }
 
   // Build nested list HTML
   let minLevel = tocEntries.map(\.level).min() ?? 1
@@ -99,14 +95,28 @@ func _generateTOC(_ doc: Document, placeholder: String) throws {
     tocHTML += "<li><a href=\"#\(entry.slug)\">\(entry.text)</a>"
   }
 
-  // Close remaining open items and lists
   for _ in 0 ..< currentLevel {
     tocHTML += "</li></ul>"
   }
 
   let fragment = try SwiftSoup.parseBodyFragment(tocHTML)
-  guard let toc = try fragment.select("ul").first() else { return }
+  guard let toc = try fragment.select("ul").first() else { return nil }
   try toc.addClass("toc")
+  return try toc.outerHtml()
+}
+
+func _generateTOC(_ doc: Document, placeholder: String) throws {
+  guard let tocParagraph = try doc.select("p").first(where: { try $0.text() == placeholder }) else {
+    return
+  }
+
+  guard let tocHTML = try buildTOCList(doc, placeholder: placeholder) else {
+    try tocParagraph.remove()
+    return
+  }
+
+  let fragment = try SwiftSoup.parseBodyFragment(tocHTML)
+  guard let toc = try fragment.select("ul").first() else { return }
   try tocParagraph.replaceWith(toc)
 }
 

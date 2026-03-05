@@ -62,6 +62,54 @@ final class SwiftSoupTransformationTests: XCTestCase {
     XCTAssertEqual(normalize(html), normalize(expected))
   }
 
+  // MARK: - buildTOCList
+
+  func testBuildTOCListFlat() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>One</h2><h2>Two</h2><h2>Three</h2>")
+    let result = try XCTUnwrap(try buildTOCList(doc))
+
+    let expected = """
+    <ul class="toc">
+     <li><a href="#one">One</a></li>
+     <li><a href="#two">Two</a></li>
+     <li><a href="#three">Three</a></li>
+    </ul>
+    """
+
+    XCTAssertEqual(normalize(result), normalize(expected))
+  }
+
+  func testBuildTOCListNested() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Hardware</h2><h3>Computers</h3><h3>Gadgets</h3><h2>Software</h2>")
+    let result = try XCTUnwrap(try buildTOCList(doc))
+
+    let expected = """
+    <ul class="toc">
+     <li><a href="#hardware">Hardware</a>
+      <ul>
+       <li><a href="#computers">Computers</a></li>
+       <li><a href="#gadgets">Gadgets</a></li>
+      </ul></li>
+     <li><a href="#software">Software</a></li>
+    </ul>
+    """
+
+    XCTAssertEqual(normalize(result), normalize(expected))
+  }
+
+  func testBuildTOCListAddsAnchors() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Section</h2>")
+    _ = try buildTOCList(doc)
+    let html = try XCTUnwrap(try doc.body()?.html())
+    XCTAssertTrue(html.contains("<a name=\"section\"></a>"))
+  }
+
+  func testBuildTOCListReturnsNilForNoHeadings() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<p>Just a paragraph</p>")
+    let result = try buildTOCList(doc)
+    XCTAssertNil(result)
+  }
+
   // MARK: - generateTOC
 
   func testGenerateTOCNesting() throws {
