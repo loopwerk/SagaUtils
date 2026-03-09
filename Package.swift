@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
   name: "SagaUtils",
   platforms: [
-    .macOS(.v12),
+    .macOS(.v14),
   ],
   products: [
     .library(
