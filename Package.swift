@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:6.0
 
 import PackageDescription
 
@@ -14,8 +14,8 @@ let package = Package(
     ),
   ],
   dependencies: [
-    .package(name: "Saga", url: "https://github.com/loopwerk/Saga.git", from: "2.0.3"),
-    .package(name: "SwiftSoup", url: "https://github.com/scinfu/SwiftSoup.git", from: "2.6.0"),
+    .package(url: "https://github.com/loopwerk/Saga.git", from: "2.0.3"),
+    .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.6.0"),
   ],
   targets: [
     .target(

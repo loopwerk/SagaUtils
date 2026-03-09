@@ -5,4 +5,4 @@ test:
   swift test
 
 format:
-  swiftformat -swift-version 5 .
+  swiftformat -swift-version 6 .
