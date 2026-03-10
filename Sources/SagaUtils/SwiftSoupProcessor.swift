@@ -18,8 +18,8 @@ import SwiftSoup
 /// )
 /// ```
 public func swiftSoupProcessor<M>(
-  _ transformations: ((Document, Item<M>) throws -> Void)...
-) -> (Item<M>) async -> Void {
+  _ transformations: (@Sendable (Document, Item<M>) throws -> Void)...
+) -> @Sendable (Item<M>) async -> Void {
   return { item in
     do {
       let doc = try SwiftSoup.parseBodyFragment(item.body)
