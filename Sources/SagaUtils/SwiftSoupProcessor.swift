@@ -20,7 +20,7 @@ import SwiftSoup
 public func swiftSoupProcessor<M>(
   _ transformations: (@Sendable (Document, Item<M>) throws -> Void)...
 ) -> @Sendable (Item<M>) async -> Void {
-  return { item in
+  return { @Sendable item in
     do {
       let doc = try SwiftSoup.parseBodyFragment(item.body)
       for transformation in transformations {
