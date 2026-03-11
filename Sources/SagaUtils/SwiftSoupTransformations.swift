@@ -24,6 +24,7 @@ public func generateTOC<M>(_ doc: Document, item: Item<M>) throws {
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
 /// - Parameter placeholder: The placeholder string to look for.
+@preconcurrency
 public func generateTOC<M>(placeholder: String) -> @Sendable (Document, Item<M>) throws -> Void {
   return { @Sendable doc, _ in
     try _generateTOC(doc, placeholder: placeholder)

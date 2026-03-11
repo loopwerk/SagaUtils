@@ -17,6 +17,7 @@ import SwiftSoup
 ///   myOtherProcessor
 /// )
 /// ```
+@preconcurrency
 public func swiftSoupProcessor<M>(
   _ transformations: (@Sendable (Document, Item<M>) throws -> Void)...
 ) -> @Sendable (Item<M>) async -> Void {
