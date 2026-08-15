@@ -306,7 +306,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
-    <a href="https://example.com" target="_blank" rel="nofollow">External</a>
+    <a href="https://example.com" target="_blank" rel="noopener">External</a>
     <a href="/about">Internal</a>
     """
 
@@ -320,7 +320,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
     let html = try XCTUnwrap(try doc.body()?.html())
 
     let expected = """
-    <a href="http://example.com" target="_blank" rel="nofollow">HTTP</a>
+    <a href="http://example.com" target="_blank" rel="noopener">HTTP</a>
     """
 
     XCTAssertEqual(normalize(html), normalize(expected))
@@ -354,7 +354,7 @@ final class SwiftSoupTransformationTests: XCTestCase {
 
     let expected = """
     <h2><a name="title"></a>Title</h2>
-    <a href="https://example.com" target="_blank" rel="nofollow">Link</a>
+    <a href="https://example.com" target="_blank" rel="noopener">Link</a>
     """
 
     XCTAssertEqual(normalize(item.body), normalize(expected))

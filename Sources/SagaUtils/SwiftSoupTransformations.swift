@@ -154,14 +154,14 @@ public func convertAsides<M>(_ doc: Document, item: Item<M>) throws {
   }
 }
 
-/// Add `target="_blank"` and `rel="nofollow"` to external (http/https) links.
+/// Add `target="_blank"` and `rel="noopener"` to external (http/https) links.
 public func processExternalLinks<M>(_ doc: Document, item: Item<M>) throws {
   let links = try doc.select("a[href]")
   for link in links {
     let href = try link.attr("href")
     if href.hasPrefix("http://") || href.hasPrefix("https://") {
       try _ = link.attr("target", "_blank")
-      try _ = link.attr("rel", "nofollow")
+      try _ = link.attr("rel", "noopener")
     }
   }
 }
