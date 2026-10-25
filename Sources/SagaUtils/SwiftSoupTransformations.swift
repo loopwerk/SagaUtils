@@ -4,7 +4,7 @@ import SwiftSoup
 
 /// Add `<a name="slug"></a>` anchors to h1, h2, h3 headings.
 ///
-/// Repeated headings get a numeric suffix: `hugo`, `hugo-2`, `hugo-3`.
+/// Repeated headings get a numeric suffix.
 public func addHeadingAnchors<M>(_ doc: Document, item: Item<M>) throws {
   var usedSlugs = try existingAnchorNames(doc)
   for heading in try doc.select("h1, h2, h3") {
