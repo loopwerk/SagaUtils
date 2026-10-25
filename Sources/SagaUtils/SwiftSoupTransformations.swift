@@ -3,14 +3,38 @@ import Saga
 import SwiftSoup
 
 /// Add `<a name="slug"></a>` anchors to h1, h2, h3 headings.
+///
+/// Repeated headings get a numeric suffix: `hugo`, `hugo-2`, `hugo-3`.
 public func addHeadingAnchors<M>(_ doc: Document, item: Item<M>) throws {
-  let headings = try doc.select("h1, h2, h3")
-  for heading in headings {
-    guard try heading.select("a[name]").isEmpty() else { continue }
-    let text = try heading.text()
-    let slug = text.slugified
-    try heading.prepend("<a name=\"\(slug)\"></a>")
+  var usedSlugs = try existingAnchorNames(doc)
+  for heading in try doc.select("h1, h2, h3") {
+    _ = try addHeadingAnchor(heading, usedSlugs: &usedSlugs)
   }
+}
+
+/// The names of all `<a name>` anchors already in the document, so generated slugs don't collide with them.
+private func existingAnchorNames(_ doc: Document) throws -> Set<String> {
+  try Set(doc.select("a[name]").map { try $0.attr("name") })
+}
+
+/// Prepend an `<a name>` anchor to the heading with a slug not in `usedSlugs`, unless it already has one.
+/// Returns the anchor's name.
+private func addHeadingAnchor(_ heading: Element, usedSlugs: inout Set<String>) throws -> String {
+  if let existing = try heading.select("a[name]").first() {
+    return try existing.attr("name")
+  }
+
+  let base = try heading.text().slugified
+  var slug = base
+  var counter = 2
+  while usedSlugs.contains(slug) {
+    slug = "\(base)-\(counter)"
+    counter += 1
+  }
+
+  usedSlugs.insert(slug)
+  try heading.prepend("<a name=\"\(slug)\"></a>")
+  return slug
 }
 
 /// Replace `%TOC%` placeholder with a generated `<ul class="toc">` from headings.
@@ -41,6 +65,7 @@ public func generateTOC<M>(placeholder: String) -> @Sendable (Document, Item<M>)
 public func buildTOCList(_ doc: Document, placeholder: String? = nil) throws -> String? {
   var tocEntries: [(text: String, slug: String, level: Int)] = []
   var collecting = placeholder == nil
+  var usedSlugs = try existingAnchorNames(doc)
 
   let elements = try doc.select(placeholder == nil ? "h1, h2, h3" : "p, h1, h2, h3")
   for element in elements {
@@ -54,10 +79,7 @@ public func buildTOCList(_ doc: Document, placeholder: String? = nil) throws -> 
 
     guard tagName != "p" else { continue }
 
-    let slug = text.slugified
-    if try element.select("a[name]").isEmpty() {
-      try element.prepend("<a name=\"\(slug)\"></a>")
-    }
+    let slug = try addHeadingAnchor(element, usedSlugs: &usedSlugs)
 
     if collecting {
       let level: Int

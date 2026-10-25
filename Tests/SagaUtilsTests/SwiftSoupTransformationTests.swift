@@ -64,6 +64,33 @@ final class SwiftSoupTransformationTests: XCTestCase {
     XCTAssertEqual(normalize(html), normalize(expected))
   }
 
+  func testAddHeadingAnchorsDuplicateHeadings() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Foo</h2><h3>Foo</h3><h2>Foo</h2>")
+    try addHeadingAnchors(doc, item: dummyItem)
+    let html = try XCTUnwrap(try doc.body()?.html())
+
+    let expected = """
+    <h2><a name="foo"></a>Foo</h2>
+    <h3><a name="foo-2"></a>Foo</h3>
+    <h2><a name="foo-3"></a>Foo</h2>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
+  }
+
+  func testAddHeadingAnchorsAvoidsExistingAnchors() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Intro</h2><h2><a name=\"intro\"></a>Other</h2>")
+    try addHeadingAnchors(doc, item: dummyItem)
+    let html = try XCTUnwrap(try doc.body()?.html())
+
+    let expected = """
+    <h2><a name="intro-2"></a>Intro</h2>
+    <h2><a name="intro"></a>Other</h2>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
+  }
+
   // MARK: - buildTOCList
 
   func testBuildTOCListFlat() throws {
@@ -104,6 +131,33 @@ final class SwiftSoupTransformationTests: XCTestCase {
     _ = try buildTOCList(doc)
     let html = try XCTUnwrap(try doc.body()?.html())
     XCTAssertTrue(html.contains("<a name=\"section\"></a>"))
+  }
+
+  func testBuildTOCListDuplicateHeadings() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Foo</h2><h2>Foo</h2>")
+    let result = try XCTUnwrap(try buildTOCList(doc))
+
+    let expected = """
+    <ul class="toc">
+     <li><a href="#foo">Foo</a></li>
+     <li><a href="#foo-2">Foo</a></li>
+    </ul>
+    """
+
+    XCTAssertEqual(normalize(result), normalize(expected))
+  }
+
+  func testBuildTOCListUsesExistingAnchor() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2><a name=\"custom\"></a>Title</h2>")
+    let result = try XCTUnwrap(try buildTOCList(doc))
+
+    let expected = """
+    <ul class="toc">
+     <li><a href="#custom">Title</a></li>
+    </ul>
+    """
+
+    XCTAssertEqual(normalize(result), normalize(expected))
   }
 
   func testBuildTOCListReturnsNilForNoHeadings() throws {
