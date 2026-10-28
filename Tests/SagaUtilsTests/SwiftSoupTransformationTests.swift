@@ -160,6 +160,27 @@ final class SwiftSoupTransformationTests: XCTestCase {
     XCTAssertEqual(normalize(result), normalize(expected))
   }
 
+  func testBuildTOCListMaxLevel() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Hardware</h2><h3>Computers</h3><h3>Gadgets</h3><h2>Software</h2>")
+    let result = try XCTUnwrap(try buildTOCList(doc, maxLevel: 2))
+
+    let expected = """
+    <ul class="toc">
+     <li><a href="#hardware">Hardware</a></li>
+     <li><a href="#software">Software</a></li>
+    </ul>
+    """
+
+    XCTAssertEqual(normalize(result), normalize(expected))
+  }
+
+  func testBuildTOCListMaxLevelStillAddsAnchors() throws {
+    let doc = try SwiftSoup.parseBodyFragment("<h2>Hardware</h2><h3>Computers</h3>")
+    _ = try buildTOCList(doc, maxLevel: 2)
+    let html = try XCTUnwrap(try doc.body()?.html())
+    XCTAssertTrue(html.contains("<a name=\"computers\"></a>"))
+  }
+
   func testBuildTOCListReturnsNilForNoHeadings() throws {
     let doc = try SwiftSoup.parseBodyFragment("<p>Just a paragraph</p>")
     let result = try buildTOCList(doc)
@@ -263,6 +284,23 @@ final class SwiftSoupTransformationTests: XCTestCase {
      <li><a href="#section">Section</a></li>
     </ul>
     <h2><a name="section"></a>Section</h2>
+    """
+
+    XCTAssertEqual(normalize(html), normalize(expected))
+  }
+
+  func testGenerateTOCMaxLevel() throws {
+    let input = "<p>%TOC%</p><h2>Hardware</h2><h3>Computers</h3>"
+    let doc = try SwiftSoup.parseBodyFragment(input)
+    try generateTOC(maxLevel: 2)(doc, dummyItem)
+    let html = try XCTUnwrap(try doc.body()?.html())
+
+    let expected = """
+    <ul class="toc">
+     <li><a href="#hardware">Hardware</a></li>
+    </ul>
+    <h2><a name="hardware"></a>Hardware</h2>
+    <h3><a name="computers"></a>Computers</h3>
     """
 
     XCTAssertEqual(normalize(html), normalize(expected))

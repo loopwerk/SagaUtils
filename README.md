@@ -40,11 +40,11 @@ try await Saga(input: "content", output: "deploy")
 ### Available Transformations
 
 - **`addHeadingAnchors`** — Adds `<a name="slug"></a>` anchors to h1, h2, h3 headings.
-- **`generateTOC`** — Replaces a `%TOC%` placeholder with a `<nav class="toc">` generated from headings. Also adds heading anchors, so there's no need to also use `addHeadingAnchors`. Use `generateTOC(placeholder: "@TOC")` for a custom placeholder.
+- **`generateTOC`** — Replaces a `%TOC%` placeholder with a `<ul class="toc">` generated from headings. Also adds heading anchors, so there's no need to also use `addHeadingAnchors`.
 - **`convertAsides`** — Converts blockquotes with `[!TYPE]` syntax to `<aside class="type">` elements. For example, `[!WARNING]` becomes `<aside class="warning">`.
 - **`processExternalLinks`** — Adds `target="_blank"` and `rel="noopener"` to external links.
 
-You can also write your own transformations with the signature `(Document) throws -> Void` and pass them to `swiftSoupProcessor`.
+You can also write your own transformations with the signature `(Document, Item<M>) throws -> Void` and pass them to `swiftSoupProcessor`.
 
 ## String Extensions
 

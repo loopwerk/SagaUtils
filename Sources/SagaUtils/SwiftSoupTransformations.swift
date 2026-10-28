@@ -41,17 +41,19 @@ private func addHeadingAnchor(_ heading: Element, usedSlugs: inout Set<String>) 
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
 public func generateTOC<M>(_ doc: Document, item: Item<M>) throws {
-  try _generateTOC(doc, placeholder: "%TOC%")
+  try _generateTOC(doc, placeholder: "%TOC%", maxLevel: 3)
 }
 
-/// Replace a custom placeholder with a generated `<ul class="toc">` from headings.
+/// Replace a placeholder with a generated `<ul class="toc">` from headings.
 ///
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
-/// - Parameter placeholder: The placeholder string to look for.
+/// - Parameters:
+///   - placeholder: The placeholder string to look for.
+///   - maxLevel: The deepest heading level included in the TOC, for example `2` for only h1 and h2 headings.
 @preconcurrency
-public func generateTOC<M>(placeholder: String) -> @Sendable (Document, Item<M>) throws -> Void {
+public func generateTOC<M>(placeholder: String = "%TOC%", maxLevel: Int = 3) -> @Sendable (Document, Item<M>) throws -> Void {
   return { @Sendable doc, _ in
-    try _generateTOC(doc, placeholder: placeholder)
+    try _generateTOC(doc, placeholder: placeholder, maxLevel: maxLevel)
   }
 }
 
@@ -60,9 +62,12 @@ public func generateTOC<M>(placeholder: String) -> @Sendable (Document, Item<M>)
 /// Also adds heading anchors, so there is no need to also use ``addHeadingAnchors``.
 /// Returns `nil` if no headings are found.
 ///
-/// - Parameter placeholder: If provided, only headings after the this
-///   placeholder are included. If `nil`, all headings are included.
-public func buildTOCList(_ doc: Document, placeholder: String? = nil) throws -> String? {
+/// - Parameters:
+///   - placeholder: If provided, only headings after this
+///     placeholder are included. If `nil`, all headings are included.
+///   - maxLevel: The deepest heading level included in the TOC, for example `2` for only h1 and h2 headings.
+///     Deeper headings still get anchors.
+public func buildTOCList(_ doc: Document, placeholder: String? = nil, maxLevel: Int = 3) throws -> String? {
   var tocEntries: [(text: String, slug: String, level: Int)] = []
   var collecting = placeholder == nil
   var usedSlugs = try existingAnchorNames(doc)
@@ -89,6 +94,7 @@ public func buildTOCList(_ doc: Document, placeholder: String? = nil) throws -> 
         case "h3": level = 3
         default: continue
       }
+      guard level <= maxLevel else { continue }
       tocEntries.append((text: text, slug: slug, level: level))
     }
   }
@@ -129,12 +135,12 @@ public func buildTOCList(_ doc: Document, placeholder: String? = nil) throws -> 
   return try toc.outerHtml()
 }
 
-func _generateTOC(_ doc: Document, placeholder: String) throws {
+func _generateTOC(_ doc: Document, placeholder: String, maxLevel: Int) throws {
   guard let tocParagraph = try doc.select("p").first(where: { try $0.text() == placeholder }) else {
     return
   }
 
-  guard let tocHTML = try buildTOCList(doc, placeholder: placeholder) else {
+  guard let tocHTML = try buildTOCList(doc, placeholder: placeholder, maxLevel: maxLevel) else {
     try tocParagraph.remove()
     return
   }
